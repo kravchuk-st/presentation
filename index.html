@@ -1,0 +1,184 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>reveal.js</title>
+
+		<link rel="stylesheet" href="dist/reset.css">
+		<link rel="stylesheet" href="dist/reveal.css">
+		<link rel="stylesheet" href="dist/theme/moon.css">
+
+		<!-- Theme used for syntax highlighted code -->
+		<link rel="stylesheet" href="plugin/highlight/monokai.css">
+		<style>
+			.reveal section p,
+			.reveal section li {
+				text-align: left;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section>
+					<h1>JWT</h1>
+					<p>
+						JSON Web Token (JWT) is an open standard (RFC 7519) that defines a compact and self-contained way for securely transmitting information between parties as a JSON object. This information can be verified and trusted because it is digitally signed. JWTs can be signed using a secret (with the HMAC algorithm) or a public/private key pair using RSA or ECDSA.
+					</p>
+				</section>
+				<section>
+					<h2>JWT-based Authentication</h2>
+					<p>
+						The basic thing you need to understand JWT-based authentication is that you’re dealing with an encrypted JSON which we’ll call “token”. This token has all the information required for the back-end system to understand who you are and if, indeed, you are who you say you are.
+					</p>
+					<h3>
+						You only need 4 steps:
+					</h3>
+					<ul>
+						<li>
+							First, the client application will send a sign-in request. This means you’re sending the log-in credentials, just this once.
+						</li>
+						<li>
+							Second, the API will validate these credentials and if they’re correct, it’ll generate the token. This allows you to add as much data into it as you want, because JWT allows you to perform stateless authorization.
+						</li>
+						<li>
+							Third, with the JWT generated, all you have to do is return it back to the client application.
+						</li>
+						<li>
+							Finally, the client app will later send this token on every subsequent request. This token means you’ve been authenticated and can access the secret section of the application.
+						</li>
+					</ul>
+				</section>
+				<section>
+					<h2>
+						The back-end side of things
+					</h2>
+					<p>
+						For the back-end, or the microservice if you will, there are two major steps that you need to understand:
+					</p>
+					<ol>
+						<li>
+							Generating the JSON Web Token. This is key, as I mentioned before because the information you add will be used later.
+						</li>
+						<li>
+							Validating the token for received requests. I left this part out of the authentication process because this is actually part of the authorization flow. Very similar, and easy to implement, but worth noting as well.
+						</li>
+					</ol>
+					<p>
+						So, let’s get into it.
+					</p>
+				</section>
+				<section>
+					<h2>
+						Generating the JWT
+					</h2>
+					<p>
+						You can literally use a JSON object. However, other than the custom attributes you can add, there are also pre-defined options that have a functional meaning for the specific algorithm that the library is using:
+					</p>
+					<ul>
+						<li>
+							exp - it is the main option you must to take into account, the token to have an expiration date. Otherwise, it will last forever, potentially leaving an open vulnerability for someone who can capture it and later use it to impersonate your identity.
+						</li>
+						<li>
+							iat which stands for "Issued At" and is a date reference used for expiration checks (i.e that’s the date it’ll take into account when checking if your token is still valid).
+						</li>
+					</ul>
+				</section>
+				<section>
+					<h2>
+						Storing the token
+					</h2>
+					<p>
+						As an optional step, you can also store the token in your database to associate it with your user. Normally, you wouldn’t need to do this if all the user information can be stored in your token. However, if there is more information to manage that you can comfortably store in your token, then keeping an association with your user’s profile inside the database might be a good idea. In fact, given that looking up this token would be something you’d do on every request, a good alternative is to keep both, the token and the relevant information about your user inside some in-memory storage, such as Redis.
+					</p>
+				</section>
+				<section>
+					<h2>
+						Checking the Token
+					</h2>
+					<p>
+						Just because we’re getting a token as part of the request, it doesn’t mean such a request is safe, it could very well be a fake one or have an invalid or even expired token. This is why on every request of a secured resource you need to validate the token received. If you’ve skipped the storage step, then this is a relatively cheap task.
+					</p>
+				</section>
+				<section>
+					<h2>
+						SPA authentication
+					</h2>
+					<p>
+						Now that we understand what it means for an API to be protected by a JWT authentication process, I wanted to cover the same process from the POV of a SPA application acting as the client app. In this case, you’ll be contacting a service initially by sending your credentials and receiving a token which you’ll have to use on every following request. The first thing we need to understand though is that session-based authentication is not the same as token-based auth.
+					</p>
+				</section>
+				<section>
+					<h2>
+						Session-based vs Token-based authentication
+					</h2>
+					<p>
+						Essentially both methods work the same way:
+					</p>
+					<ol style="margin-right: auto;">
+						<li>You authenticate against a service.</li>
+						<li>That service validates your credentials and sends back a token</li>
+						<li>On every following request, you send that token to authenticate yourself with the service.</li>
+					</ol>
+					<p>
+						The process and the flow of data seem to be the same, but there are some major differences hidden.
+					</p>
+					<ul>
+						<li>
+							For session-based tokens, the server returns a session key, which references the session data. This data, however, is kept in the memory of the server. This essentially breaks one of the benefits of RESTful APIS: stateless services can scale effortlessly because there is no session information stored in memory.
+						</li>
+						<li>
+							Session-based auth stores the session key in the browser’s cookies. They send the information as a cookie, and because of that, browsers have a problem when having microservices being served from different domains. This is not a problem for token-based auth, since the token is sent as a request header.
+						</li>
+					</ul>
+				</section>
+				<!-- <section>
+					<h2>
+						CSRF or Cross-Site Request Forgery
+					</h2>
+					<p>
+						Thet happens when an attacker takes advantage of the fact that cookies can be sent with every request. If somehow you as a user are tricked into clicking a malicious link, you can end up on a site sending a request to maybe change your password. Because in the past you’ve logged in against your secure site before and your browser has the cookie in storage still, the request will succeed. So do not store the token on your cookies either!
+					</p>
+				</section> -->
+				<!-- <section>
+					<h2>
+						Do you need HTTPS with JWT?
+					</h2>
+					<p>
+						Truth is, that being 100% secured is not only hard but nearly impossible. If someone skilled enough wants to hack you, they’ll find a way to do it. This is about discouraging 90% of potential attackers by taking care of the basic steps.
+					</p>
+					<p>
+						An HTTPS connection between a client and a server-side service is an encrypted channel of communication between the two ends. There is no way (almost) for an attacker to read that stream from outside and figure out what’s being sent. So unlike normal HTTP which is not encrypted, HTTPS makes sure only a client that you correctly identified as valid is capable of talking to your services.
+					</p>
+				</section> -->
+				<section>
+					<h2>
+						To sum up
+					</h2>
+					<p>
+						When it comes to securing a RESTful API (or any stateless back-end service really), the JWT-based approach is definitely an interesting option. By default, it might not be the most secure one, but with a little bit of work and configuration, most of the common attack vectors can be tackled. It provides a great level of control over what you do with, and how you generate, your tokens and it makes scaling your back-end infrastructure trivially simple.
+					</p>
+				</section>
+			</div>
+		</div>
+
+		<script src="dist/reveal.js"></script>
+		<script src="plugin/notes/notes.js"></script>
+		<script src="plugin/markdown/markdown.js"></script>
+		<script src="plugin/highlight/highlight.js"></script>
+		<script>
+			// More info about initialization & config:
+			// - https://revealjs.com/initialization/
+			// - https://revealjs.com/config/
+			Reveal.initialize({
+				width: 1300,
+				hash: true,
+
+				// Learn about plugins: https://revealjs.com/plugins/
+				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ]
+			});
+		</script>
+	</body>
+</html>
